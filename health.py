@@ -1,95 +1,125 @@
 import streamlit as st
+import pandas as pd
 
-# ---------- 1. APP BRANDING ----------
-st.set_page_config(page_title="Smart Health Helper", page_icon="🧬", layout="centered")
+st.title("🧬 LifeMode AI – Lifestyle Health System")
 
-st.title("🧬 Smart Health Helper")
-st.caption("A mini health analysis app by Mehboob (CS) + Biotech Team")
-st.markdown("---")
+# ---------- 1. PERSONAL PROFILE ----------
+st.subheader("🧍 Personal Profile")
 
-# ---------- 2. INPUT SECTION ----------
-st.header("📥 Enter Your Health Details")
+height = st.number_input("Height (cm)", 100, 250)
+weight = st.number_input("Weight (kg)", 30, 200)
 
-col1, col2 = st.columns(2)
+biological_sex = st.selectbox("Biological sex (optional)", ["Prefer not to say", "Male", "Female"])
 
-with col1:
-    name = st.text_input("Name")
-    age = st.number_input("Age", 1, 120)
-    sleep = st.number_input("Sleep (hours)", 0.0, 24.0)
+lifestyle = st.selectbox(
+    "Working lifestyle",
+    ["Desk / Office Worker", "Student / Part-time Worker", "Gamer / Streamer",
+     "Restaurant / Retail Worker", "Physically Active Worker"]
+)
 
-with col2:
-    water = st.number_input("Water (glasses)", 0, 20)
-    protein = st.number_input("Protein (grams)", 0, 300)
-    calories = st.number_input("Calories (kcal)", 0, 4000)
+# ---------- 2. BASIC HEALTH INPUTS ----------
+st.subheader("📥 Basic Health Inputs")
 
-# ---------- 3. LOGIC SECTION ----------
-def calculate_score(age, water, sleep, protein, calories):
-    score = 0
-    if age < 30: score += 1
-    if water >= 8: score += 1
-    if sleep >= 7: score += 1
-    if protein >= 100: score += 1
-    if calories >= 1500: score += 1
-    return score
+age = st.number_input("Age", 1, 120)
+sleep = st.number_input("Sleep (hours)", 0.0, 24.0)
+water = st.number_input("Water intake (liters)", 0.0, 10.0)
+protein = st.number_input("Protein intake (grams)", 0, 300)
+calories = st.number_input("Calories intake (kcal)", 0, 5000)
 
-
-def health_risk_level(score):
-    if score == 5:
-        return "Low Risk 🟢", "Your lifestyle indicators are very healthy."
-    elif score == 4:
-        return "Moderate Risk 🟡", "Some habits are good, but there is room for improvement."
-    elif score == 3:
-        return "High Risk 🟠", "Multiple health factors are below recommended levels."
+# ---------- 3. BIOLOGICAL ENGINE ----------
+def age_group(age):
+    if age < 18:
+        return "Adolescent", 8.5
+    elif age <= 30:
+        return "Young Adult", 8
+    elif age <= 50:
+        return "Adult", 7.5
     else:
-        return "Very High Risk 🔴", "Your current lifestyle may increase health risks. Immediate changes are recommended."
+        return "Older Adult", 7.5
 
 
-# ---------- 4. OUTPUT + TIPS ----------
+def calculate_bmi(weight, height_cm):
+    h = height_cm / 100
+    bmi = weight / (h ** 2)
+
+    if bmi < 18.5:
+        status = "Underweight"
+    elif bmi < 25:
+        status = "Normal"
+    elif bmi < 30:
+        status = "Overweight"
+    else:
+        status = "Obese"
+
+    return round(bmi, 2), status
+
+
+def lifestyle_factor(lifestyle):
+    if lifestyle == "Desk / Office Worker":
+        return 1.2
+    elif lifestyle == "Student / Part-time Worker":
+        return 1.35
+    elif lifestyle == "Gamer / Streamer":
+        return 1.25
+    elif lifestyle == "Restaurant / Retail Worker":
+        return 1.55
+    else:
+        return 1.75
+
+
+def ideal_values(age, weight, lifestyle):
+    group, ideal_sleep = age_group(age)
+    factor = lifestyle_factor(lifestyle)
+
+    ideal_water = round(weight * 0.035 * factor, 2)
+    ideal_protein_min = round(weight * 0.8)
+    ideal_protein_max = round(weight * 1.2)
+    ideal_calories = round(24 * weight * factor)
+
+    return group, ideal_sleep, ideal_water, ideal_protein_min, ideal_protein_max, ideal_calories
+
+
+# ---------- 4. ANALYSIS BUTTON ----------
 if st.button("🧪 Analyze My Health"):
 
-    score = calculate_score(age, water, sleep, protein, calories)
-    risk, explanation = health_risk_level(score)
+    group, ideal_sleep, ideal_water, p_min, p_max, ideal_calories = ideal_values(age, weight, lifestyle)
+    bmi, bmi_status = calculate_bmi(weight, height)
 
-    st.markdown("---")
-    st.header("📊 Health Report")
-    st.write(f"👤 Name: {name}")
-    st.write(f"✅ Healthy habits followed: {score} / 5")
+    st.header("🧬 Biological Profile")
+    st.write("Age group:", group)
+    st.write("BMI:", bmi, "(", bmi_status, ")")
 
-    st.subheader("🧠 Health Risk Analysis")
-    st.write("Risk Level:", risk)
-    st.write("Explanation:", explanation)
+    st.subheader("🎯 Your Ideal Health Targets")
+    st.write("Ideal sleep:", ideal_sleep, "hrs")
+    st.write("Ideal water:", ideal_water, "L")
+    st.write("Ideal protein:", f"{p_min} – {p_max} g")
+    st.write("Ideal calories:", ideal_calories, "kcal")
 
-    if score == 5:
-        st.success("Excellent health habits! 🔥")
-    elif score == 4:
-        st.info("Good, but can improve 🙂")
-    elif score == 3:
-        st.warning("Your body needs better routine 🥗😴")
-    else:
-        st.error("High health risk. Immediate lifestyle improvement needed ⚠️")
+    # ---------- 5. GRAPH ----------
+    actual = [sleep, water, protein, calories]
+    ideal = [ideal_sleep, ideal_water, p_max, ideal_calories]
 
-    st.progress(score / 5)
+    data = pd.DataFrame({
+        "Category": ["Sleep (hrs)", "Water (L)", "Protein (g)", "Calories (kcal)"],
+        "Your intake": actual,
+        "Ideal": ideal
+    })
 
-    # ---------- 5. PERSONALIZED TIPS ----------
-    st.markdown("---")
-    st.header("🩺 Personalized Health Tips")
+    st.subheader("📊 Lifestyle vs Biological Needs")
+    st.bar_chart(data.set_index("Category"))
 
-    # 💧 WATER
-    if water < 8:
-        st.subheader("💧 Hydration Tips")
-        st.write("Aim for 9–13 cups daily. Carry a bottle, sip hourly, eat water-rich fruits, and drink extra in Pune’s heat.")
+    # ---------- 6. PROGRESS ----------
+    st.subheader("📈 Fulfillment Levels")
 
-    # 😴 SLEEP
-    if sleep < 7:
-        st.subheader("😴 Sleep Tips")
-        st.write("Fix sleep times, reduce screens before bed, get morning sunlight, and keep your room dark & cool.")
+    st.progress(min(float(sleep/ideal_sleep), 1.0))
+    st.caption("Sleep fulfillment")
 
-    # 🥗 PROTEIN
-    if protein < 100:
-        st.subheader("🥗 Protein Tips")
-        st.write("Add eggs, dairy, legumes, soy, nuts, tuna, and protein smoothies. Aim 20–30g protein every 3–4 hours.")
+    st.progress(min(float(water/ideal_water), 1.0))
+    st.caption("Hydration fulfillment")
 
-    # 🍽️ CALORIES
-    if calories < 1500:
-        st.subheader("🍽️ Calorie Tips")
-        st.write("Use calorie-dense snacks like trail mix, peanut butter, smoothies, oats with milk, and nuts.")
+    st.progress(min(float(protein/p_max), 1.0))
+    st.caption("Protein fulfillment")
+
+    st.progress(min(float(calories/ideal_calories), 1.0))
+    st.caption("Energy fulfillment")
+
