@@ -7,7 +7,7 @@ st.warning("⚠️ WorkWellAI.py is running (AI build)")
 
 
 
-model = load("health_risk_model.pkl")
+# model = load("health_risk_model.pkl")
 
 
 st.title("🧬 LifeMode AI – Lifestyle Health System")
@@ -108,7 +108,7 @@ if st.button("🧪 Analyze My Health"):
 
     ai_input = np.array([[age, bmi, sleep, water, protein, calories, lifestyle_code]])
 
-    ai_prediction = model.predict(ai_input)[0]
+    #ai_prediction = model.predict(ai_input)[0]
 
     risk_map = {
         0: ("🟢 Low Risk", "Your lifestyle shows good biological balance."),
