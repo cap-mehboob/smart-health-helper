@@ -111,10 +111,10 @@ if st.button("🧪 Analyze My Health"):
     # ---------- 6. PROGRESS ----------
     st.subheader("📈 Fulfillment Levels")
 
-    st.progress(min(float(sleep/ideal_sleep), 1.0))
+    st.progress(min(float(sleep/max(ideal_sleep, 1)), 1.0))
     st.caption("Sleep fulfillment")
 
-    st.progress(min(float(water/ideal_water), 1.0))
+    st.progress(min(float(water/max(ideal_water,1)), 1.0))
     st.caption("Hydration fulfillment")
 
     st.progress(min(float(protein/p_max), 1.0))
