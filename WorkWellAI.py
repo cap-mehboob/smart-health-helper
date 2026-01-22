@@ -3,12 +3,10 @@ from joblib import load
 import numpy as np
 import pandas as pd
 
-#st.warning("⚠️ WorkWellAI.py is running (AI build)")
-
-
-
-# model = load("health_risk_model.pkl")
-
+# -------------------------------
+# Load trained AI model
+# -------------------------------
+model = load("health_risk_model.pkl")
 
 st.title("🧬 LifeMode AI – Lifestyle Health System")
 
@@ -64,16 +62,14 @@ def calculate_bmi(weight, height_cm):
 
 
 def lifestyle_factor(lifestyle):
-    if lifestyle == "Desk / Office Worker":
-        return 1.2
-    elif lifestyle == "Student / Part-time Worker":
-        return 1.35
-    elif lifestyle == "Gamer / Streamer":
-        return 1.25
-    elif lifestyle == "Restaurant / Retail Worker":
-        return 1.55
-    else:
-        return 1.75
+    factors = {
+        "Desk / Office Worker": 1.2,
+        "Student / Part-time Worker": 1.35,
+        "Gamer / Streamer": 1.25,
+        "Restaurant / Retail Worker": 1.55,
+        "Physically Active Worker": 1.75
+    }
+    return factors[lifestyle]
 
 
 def ideal_values(age, weight, lifestyle):
@@ -88,7 +84,7 @@ def ideal_values(age, weight, lifestyle):
     return group, ideal_sleep, ideal_water, ideal_protein_min, ideal_protein_max, ideal_calories
 
 
-# ---------- 4. ANALYSIS BUTTON ----------
+# ---------- 4. ANALYSIS ----------
 if st.button("🧪 Analyze My Health"):
 
     group, ideal_sleep, ideal_water, p_min, p_max, ideal_calories = ideal_values(age, weight, lifestyle)
@@ -97,18 +93,39 @@ if st.button("🧪 Analyze My Health"):
     st.header("🧬 Biological Profile")
     st.write("Age group:", group)
     st.write("BMI:", bmi, "(", bmi_status, ")")
-    
-# ---------- 🤖 AI HEALTH RISK PREDICTION ----------
 
-    lifestyle_code = ["Desk / Office Worker",
-                      "Student / Part-time Worker",
-                      "Gamer / Streamer",
-                      "Restaurant / Retail Worker",
-                      "Physically Active Worker"].index(lifestyle)
+    # ---------- 4.5 HEALTH SCORE ----------
+    sleep_score = min((sleep / ideal_sleep) * 100, 100)
+    water_score = min((water / ideal_water) * 100, 100)
+    protein_score = min((protein / p_max) * 100, 100)
+    calorie_score = min((calories / ideal_calories) * 100, 100)
+
+    if bmi_status == "Normal":
+        bmi_score = 100
+    elif bmi_status in ["Underweight", "Overweight"]:
+        bmi_score = 70
+    else:
+        bmi_score = 40
+
+    health_score = round((sleep_score + water_score + protein_score + calorie_score + bmi_score) / 5)
+
+    st.markdown("---")
+    st.subheader("🧠 LifeMode Health Score")
+    st.metric("Overall Health Score", f"{health_score} / 100")
+
+    # ---------- 🤖 REAL AI PREDICTION ----------
+    lifestyle_code = [
+        "Desk / Office Worker",
+        "Student / Part-time Worker",
+        "Gamer / Streamer",
+        "Restaurant / Retail Worker",
+        "Physically Active Worker"
+    ].index(lifestyle)
 
     ai_input = np.array([[age, bmi, sleep, water, protein, calories, lifestyle_code]])
 
-    #ai_prediction = model.predict(ai_input)[0]
+    ai_prediction = model.predict(ai_input)[0]
+    ai_prob = model.predict_proba(ai_input)[0]
 
     risk_map = {
         0: ("🟢 Low Risk", "Your lifestyle shows good biological balance."),
@@ -121,65 +138,17 @@ if st.button("🧪 Analyze My Health"):
 
     st.markdown("---")
     st.subheader("🤖 AI Health Risk Assessment")
-    st.write("AI Predicted Risk Level:", ai_risk)
+    st.write("Predicted Risk Level:", ai_risk)
     st.write(ai_message)
 
+    st.subheader("📊 AI Confidence Distribution")
+    st.bar_chart(pd.DataFrame(ai_prob, index=["Low", "Moderate", "High", "Critical"], columns=["Probability"]))
 
-    st.subheader("🎯 Your Ideal Health Targets")
-    st.write("Ideal sleep:", ideal_sleep, "hrs")
-    st.write("Ideal water:", ideal_water, "L")
-    st.write("Ideal protein:", f"{p_min} – {p_max} g")
-    st.write("Ideal calories:", ideal_calories, "kcal")
-    
-# ---------- 4.5 HEALTH SCORE & RISK ENGINE ----------
-
-    sleep_score = min((sleep / ideal_sleep) * 100, 100)
-    water_score = min((water / ideal_water) * 100, 100)
-    protein_score = min((protein / p_max) * 100, 100)
-    calorie_score = min((calories / ideal_calories) * 100, 100)
-
-    # BMI score
-    if bmi_status == "Normal":
-        bmi_score = 100
-    elif bmi_status == "Underweight" or bmi_status == "Overweight":
-        bmi_score = 70
-    else:
-        bmi_score = 40
-
-    # Final LifeMode score
-    health_score = round(
-        (sleep_score + water_score + protein_score + calorie_score + bmi_score) / 5
-    )
-
-    # Risk interpretation
-    if health_score >= 85:
-        risk = "🟢 Optimal"
-        message = "Excellent lifestyle balance. Your biological needs are well supported."
-    elif health_score >= 65:
-        risk = "🟡 Needs Attention"
-        message = "You are doing well, but some biological needs are not fully met."
-    elif health_score >= 40:
-        risk = "🟠 High Risk"
-        message = "Multiple lifestyle gaps detected. Long-term health risk is rising."
-    else:
-        risk = "🔴 Critical"
-        message = "Serious biological imbalance detected. Immediate lifestyle correction is recommended."
-
-    st.markdown("---")
-    st.subheader("🧠 LifeMode Health Score")
-
-    st.metric("Overall Health Score", f"{health_score} / 100", risk)
-    st.write(message)
-
-
-    # ---------- 5. GRAPH ----------
-    actual = [sleep, water, protein, calories]
-    ideal = [ideal_sleep, ideal_water, p_max, ideal_calories]
-
+    # ---------- 5. COMPARISON GRAPH ----------
     data = pd.DataFrame({
         "Category": ["Sleep (hrs)", "Water (L)", "Protein (g)", "Calories (kcal)"],
-        "Your intake": actual,
-        "Ideal": ideal
+        "Your Intake": [sleep, water, protein, calories],
+        "Ideal": [ideal_sleep, ideal_water, p_max, ideal_calories]
     })
 
     st.subheader("📊 Lifestyle vs Biological Needs")
@@ -188,14 +157,7 @@ if st.button("🧪 Analyze My Health"):
     # ---------- 6. PROGRESS ----------
     st.subheader("📈 Fulfillment Levels")
 
-    st.progress(min(float(sleep/max(ideal_sleep, 1)), 1.0))
-    st.caption("Sleep fulfillment")
-
-    st.progress(min(float(water/max(ideal_water,1)), 1.0))
-    st.caption("Hydration fulfillment")
-
-    st.progress(min(float(protein/p_max), 1.0))
-    st.caption("Protein fulfillment")
-
-    st.progress(min(float(calories/ideal_calories), 1.0))
-    st.caption("Energy fulfillment")
+    st.progress(min(sleep / ideal_sleep, 1.0)); st.caption("Sleep fulfillment")
+    st.progress(min(water / ideal_water, 1.0)); st.caption("Hydration fulfillment")
+    st.progress(min(protein / p_max, 1.0)); st.caption("Protein fulfillment")
+    st.progress(min(calories / ideal_calories, 1.0)); st.caption("Energy fulfillment")
