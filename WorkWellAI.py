@@ -33,6 +33,23 @@ water = st.number_input("Water intake (liters)", 0.0, 10.0)
 protein = st.number_input("Protein intake (grams)", 0, 300)
 calories = st.number_input("Calories intake (kcal)", 0, 5000)
 
+# ---------- 2.5 OCCUPATIONAL HEALTH INPUTS ----------
+st.subheader("💼 Work & Body Strain Profile")
+
+work_hours = st.slider("Average working hours per day", 0, 16, 8)
+
+work_type = st.selectbox(
+    "Your main work posture",
+    ["Mostly sitting", "Mostly standing", "Mixed (sit + stand)", "Physical / moving a lot"]
+)
+
+screen_time = st.slider("Daily screen time (hours)", 0, 16, 6)
+
+pain_areas = st.multiselect(
+    "Do you experience pain or discomfort in these areas?",
+    ["Neck", "Shoulders", "Upper back", "Lower back", "Wrist/Hand", "Hips", "Knees", "Feet", "Eyestrain", "Headache"]
+)
+
 # ---------- 3. BIOLOGICAL ENGINE ----------
 def age_group(age):
     if age < 18:
@@ -43,7 +60,8 @@ def age_group(age):
         return "Adult", 7.5
     else:
         return "Older Adult", 7.5
-
+    
+#---------BMI Calculations-------------
 
 def calculate_bmi(weight, height_cm):
     h = height_cm / 100
@@ -84,6 +102,41 @@ def ideal_values(age, weight, lifestyle):
     return group, ideal_sleep, ideal_water, ideal_protein_min, ideal_protein_max, ideal_calories
 
 
+def occupational_risk(lifestyle, work_type, work_hours, screen_time, pain_areas):
+    score = 0
+    risks = []
+
+    if lifestyle in ["Desk / Office Worker", "Gamer / Streamer"]:
+        score += 2; risks.append("Sedentary strain risk")
+
+    if lifestyle == "Restaurant / Retail Worker":
+        score += 2; risks.append("Prolonged standing strain")
+
+    if lifestyle == "Physically Active Worker":
+        score += 2; risks.append("Joint overuse risk")
+
+    if work_type == "Mostly sitting":
+        score += 2; risks.append("Neck & spine compression")
+
+    if work_type == "Mostly standing":
+        score += 2; risks.append("Knee, hip & foot stress")
+
+    if screen_time >= 6:
+        score += 2; risks.append("Digital eye strain")
+
+    if work_hours >= 9:
+        score += 2; risks.append("Long-duration fatigue")
+
+    score += len(pain_areas)
+
+    if score <= 3: level = "🟢 Low Occupational Risk"
+    elif score <= 7: level = "🟡 Moderate Occupational Risk"
+    elif score <= 11: level = "🟠 High Occupational Risk"
+    else: level = "🔴 Severe Occupational Risk"
+
+    return level, risks, score
+
+
 # ---------- 4. ANALYSIS ----------
 if st.button("🧪 Analyze My Health"):
 
@@ -112,6 +165,51 @@ if st.button("🧪 Analyze My Health"):
     st.markdown("---")
     st.subheader("🧠 LifeMode Health Score")
     st.metric("Overall Health Score", f"{health_score} / 100")
+    
+    # ---------- OCCUPATIONAL ANALYSIS ----------
+    occ_level, occ_risks, occ_score = occupational_risk(
+        lifestyle, work_type, work_hours, screen_time, pain_areas
+    )    
+    
+    st.markdown("---")
+    st.header("🦴 Occupational Health & Pain Risk")
+    st.write("Risk level:", occ_level)
+    st.write("Occupational risk score:", occ_score)
+
+    if occ_risks:
+        st.subheader("⚠️ Detected strain factors")
+        for r in occ_risks:
+            st.write("•", r)
+
+    if pain_areas:
+        st.subheader("📍 Reported pain areas")
+        st.write(", ".join(pain_areas))
+    
+    st.subheader("🧘 Corrective & Preventive Actions")
+
+    if "Neck" in pain_areas or "Shoulders" in pain_areas:
+        st.write("• Do neck retraction and shoulder roll exercises every 60–90 minutes.")
+        st.write("• Keep screen at eye level and avoid forward head posture.")
+
+    if "Lower back" in pain_areas or "Upper back" in pain_areas:
+        st.write("• Add lumbar support. Avoid slouching.")
+        st.write("• Try cobra stretch, cat-cow, and seated spinal extensions.")
+
+    if "Wrist/Hand" in pain_areas:
+        st.write("• Use wrist-neutral posture. Avoid resting wrists on hard edges.")
+        st.write("• Perform wrist flexor and extensor stretches.")
+
+    if "Knees" in pain_areas or "Feet" in pain_areas:
+        st.write("• Use cushioned footwear and anti-fatigue mats.")
+        st.write("• Avoid locking knees while standing.")
+
+    if screen_time >= 6:
+        st.write("• Follow 20-20-20 rule for eyes: every 20 min, look 20 ft away for 20 sec.")
+
+    st.write("• Take a 3–5 minute mobility break every hour.")
+    st.write("• Weekly stretching + posture strengthening is strongly advised.")
+
+
 
     # ---------- 🤖 REAL AI PREDICTION ----------
     lifestyle_code = [
