@@ -4,6 +4,10 @@ import numpy as np
 import pandas as pd
 import os
 from datetime import datetime, date
+import streamlit as st
+import cv2
+import mediapipe as mp
+import numpy as np
 
 # =========================================================
 # CONFIG
@@ -415,3 +419,60 @@ if not logs.empty:
 
 else:
     st.info("No weekly data yet. Save your daily health log to start tracking.")
+# =========================================================
+# CAMERA POSTURE DETECTION (STABLE)
+# =========================================================
+
+st.markdown("---")
+st.header("🎥 AI Posture Detection")
+
+start = st.button("Start Camera")
+
+mp_pose = mp.solutions.pose
+pose = mp_pose.Pose()
+
+if start:
+    cap = cv2.VideoCapture(0)
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            st.error("Camera not detected")
+            break
+
+        frame = cv2.flip(frame, 1)
+
+        img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose.process(img_rgb)
+
+        posture_text = "Detecting..."
+
+        if results.pose_landmarks:
+            lm = results.pose_landmarks.landmark
+
+            nose = lm[mp_pose.PoseLandmark.NOSE]
+            left_shoulder = lm[mp_pose.PoseLandmark.LEFT_SHOULDER]
+            right_shoulder = lm[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+
+            shoulder_center_x = (left_shoulder.x + right_shoulder.x) / 2
+            shoulder_center_y = (left_shoulder.y + right_shoulder.y) / 2
+
+            head_forward = nose.x - shoulder_center_x
+            head_down = nose.y - shoulder_center_y
+
+            if abs(head_forward) < 0.03 and head_down < -0.05:
+                posture_text = "🟢 Good Posture"
+                color = (0,255,0)
+            elif head_down > 0.02:
+                posture_text = "🔴 Slouching"
+                color = (0,0,255)
+            else:
+                posture_text = "🟡 Neck Forward"
+                color = (0,255,255)
+
+            cv2.putText(frame, posture_text, (30,50),
+                        cv2.FONT_HERSHEY_SIMPLEX,1,color,2)
+
+        st.image(frame, channels="BGR")
+
+    cap.release()
