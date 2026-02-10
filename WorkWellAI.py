@@ -4,10 +4,10 @@ import numpy as np
 import pandas as pd
 import os
 from datetime import datetime, date
-import streamlit as st
 import cv2
 import mediapipe as mp
-import numpy as np
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
+
 
 # =========================================================
 # CONFIG
@@ -419,30 +419,21 @@ if not logs.empty:
 
 else:
     st.info("No weekly data yet. Save your daily health log to start tracking.")
-# =========================================================
-# CAMERA POSTURE DETECTION (STABLE)
-# =========================================================
 
-st.markdown("---")
-st.header("🎥 AI Posture Detection")
-
-start = st.button("Start Camera")
+# =========================================================
+# CAMERA POSTURE DETECTION
+# =========================================================
+st.title("🎥 AI Posture Detection")
 
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 
-if start:
-    cap = cv2.VideoCapture(0)
+class PostureDetector(VideoTransformerBase):
 
-    while True:
-        ret, frame = cap.read()
-        if not ret:
-            st.error("Camera not detected")
-            break
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
 
-        frame = cv2.flip(frame, 1)
-
-        img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
         results = pose.process(img_rgb)
 
         posture_text = "Detecting..."
@@ -457,22 +448,36 @@ if start:
             shoulder_center_x = (left_shoulder.x + right_shoulder.x) / 2
             shoulder_center_y = (left_shoulder.y + right_shoulder.y) / 2
 
+            # distance forward head
             head_forward = nose.x - shoulder_center_x
             head_down = nose.y - shoulder_center_y
 
             if abs(head_forward) < 0.03 and head_down < -0.05:
                 posture_text = "🟢 Good Posture"
-                color = (0,255,0)
+                color = (0, 255, 0)
+
             elif head_down > 0.02:
                 posture_text = "🔴 Slouching"
-                color = (0,0,255)
+                color = (0, 0, 255)
+
             else:
                 posture_text = "🟡 Neck Forward"
-                color = (0,255,255)
+                color = (0, 255, 255)
 
-            cv2.putText(frame, posture_text, (30,50),
-                        cv2.FONT_HERSHEY_SIMPLEX,1,color,2)
+            cv2.putText(
+                img,
+                posture_text,
+                (30, 50),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                1,
+                color,
+                2,
+            )
 
-        st.image(frame, channels="BGR")
+        return img
 
-    cap.release()
+
+webrtc_streamer(
+    key="posture",
+    video_transformer_factory=PostureDetector,
+) 
