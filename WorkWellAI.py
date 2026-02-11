@@ -425,54 +425,66 @@ else:
 # =========================================================
 st.title("🎥 AI Posture Detection")
 
+import time
+
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose()
 
 class PostureDetector(VideoTransformerBase):
 
+    def __init__(self):
+        self.last_time = 0
+        self.interval = 1.5  # seconds
+        self.cached_text = "Detecting..."
+        self.cached_color = (255, 255, 255)
+
     def transform(self, frame):
         img = frame.to_ndarray(format="bgr24")
 
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        results = pose.process(img_rgb)
+        current_time = time.time()
 
-        posture_text = "Detecting..."
+        # 🔥 Run detection only every 1.5 sec
+        if current_time - self.last_time > self.interval:
+            self.last_time = current_time
 
-        if results.pose_landmarks:
-            lm = results.pose_landmarks.landmark
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            results = pose.process(img_rgb)
 
-            nose = lm[mp_pose.PoseLandmark.NOSE]
-            left_shoulder = lm[mp_pose.PoseLandmark.LEFT_SHOULDER]
-            right_shoulder = lm[mp_pose.PoseLandmark.RIGHT_SHOULDER]
+            if results.pose_landmarks:
+                lm = results.pose_landmarks.landmark
 
-            shoulder_center_x = (left_shoulder.x + right_shoulder.x) / 2
-            shoulder_center_y = (left_shoulder.y + right_shoulder.y) / 2
+                nose = lm[mp_pose.PoseLandmark.NOSE]
+                left_shoulder = lm[mp_pose.PoseLandmark.LEFT_SHOULDER]
+                right_shoulder = lm[mp_pose.PoseLandmark.RIGHT_SHOULDER]
 
-            # distance forward head
-            head_forward = nose.x - shoulder_center_x
-            head_down = nose.y - shoulder_center_y
+                shoulder_center_x = (left_shoulder.x + right_shoulder.x) / 2
+                shoulder_center_y = (left_shoulder.y + right_shoulder.y) / 2
 
-            if abs(head_forward) < 0.03 and head_down < -0.05:
-                posture_text = "🟢 Good Posture"
-                color = (0, 255, 0)
+                head_forward = nose.x - shoulder_center_x
+                head_down = nose.y - shoulder_center_y
 
-            elif head_down > 0.02:
-                posture_text = "🔴 Slouching"
-                color = (0, 0, 255)
+                if abs(head_forward) < 0.03 and head_down < -0.05:
+                    self.cached_text = "🟢 Good Posture"
+                    self.cached_color = (0, 255, 0)
 
-            else:
-                posture_text = "🟡 Neck Forward"
-                color = (0, 255, 255)
+                elif head_down > 0.02:
+                    self.cached_text = "🔴 Slouching"
+                    self.cached_color = (0, 0, 255)
 
-            cv2.putText(
-                img,
-                posture_text,
-                (30, 50),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                1,
-                color,
-                2,
-            )
+                else:
+                    self.cached_text = "🟡 Neck Forward"
+                    self.cached_color = (0, 255, 255)
+
+        # draw cached result on every frame
+        cv2.putText(
+            img,
+            self.cached_text,
+            (30, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1,
+            self.cached_color,
+            2,
+        )
 
         return img
 
